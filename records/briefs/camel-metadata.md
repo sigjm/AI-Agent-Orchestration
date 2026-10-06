@@ -1,0 +1,56 @@
+# 수정 — 콜백 metadata 를 BE 가 읽는 표기로 맞춘다
+
+## 배경 (2026-09-18 실측)
+BE 가 우리 콜백을 받도록 만들어 줬는데, **metadata 키 표기가 달라 실패**합니다.
+
+- BE 는 `metadata.productId`, `metadata.detailPage.reactDocument` 로 **camelCase** 를 읽습니다
+- 우리는 `product_id`, `detail_page.react_document` 로 **snake_case** 를 보냅니다
+
+실제 BE 에 같은 경로로 두 형태를 보낸 결과:
+- camelCase → **200 `{"status":"SAVED"}`**
+- snake_case → **500**
+
+`react_document` **내부**(`schemaVersion`, `canvasWidth`, `root`, `imageId` …)는 이미 camelCase 로 나가고 있어 **그대로 두면 됩니다.** 문제는 **metadata 의 바깥쪽 키**입니다.
+
+## 담당 파일
+- `src/detail_page_ai/ai_dto.py`
+- `src/detail_page_ai/dto.py` (중첩 모델에 별칭이 필요하면)
+- `src/detail_page_ai/backend_client.py` (필요 시)
+- `tests/test_backend_client.py`, `tests/test_ai_dto.py`
+
+문서(`docs/`)는 다른 워커가 동시에 쓰니 열지 마세요.
+
+## BE 가 기대하는 metadata (가이드 3-3 기준)
+```json
+{
+  "generationId": "1",
+  "jobId": "job-abc-123",
+  "requestId": "req-abc-123",
+  "idempotencyKey": "1",
+  "productId": "1",
+  "detailPage": { "reactDocument": { "schemaVersion": "2.0", ... } }
+}
+```
+
+BE 코드가 실제로 읽는 것은 `metadata.path("productId")` 와 `metadata.path("detailPage").path("reactDocument")` 입니다(`AiCallbackController`). 나머지 키는 현재 읽지 않지만 가이드에 명시돼 있으므로 **함께 camelCase 로 내보내세요.**
+
+## 바꿀 것
+`AiToBePersistRequestDto` 를 `model_dump(mode="json", by_alias=True)` 했을 때 **최상위와 중첩 키가 camelCase** 로 나오게 합니다(`backend_client.py:100` 이 이미 `by_alias=True` 로 부릅니다).
+
+방법은 맡깁니다. 다만 다음을 지키세요.
+- **파이썬 필드 이름은 바꾸지 마세요.** `product_id` 등 내부 이름은 그대로 두고 **직렬화 별칭만** 추가합니다. 코드 전체를 건드리면 위험합니다.
+- **입력(검증) 쪽 호환을 깨지 마세요.** 기존 코드가 snake_case 로 이 모델을 만들고 있습니다(`pipeline.py:302`). `populate_by_name=True` 같은 설정으로 **두 이름 모두 받아들이게** 하세요.
+- `react_document` 내부 구조는 **이미 camelCase 이므로 손대지 마세요.**
+- 다른 DTO(`BeToAiCreateJobRequestDto` 등 BE→AI 방향)는 **건드리지 마세요.** 이번 변경은 **AI→BE 콜백 metadata 한정**입니다.
+
+## 테스트
+- `model_dump(mode="json", by_alias=True)` 결과에 `generationId`·`productId`·`detailPage`·`reactDocument` 가 있고 snake_case 키가 **없다**
+- snake_case 입력으로 모델을 만들 수 있다(기존 호출부 호환)
+- `react_document` 내부 `schemaVersion`·`canvasWidth` 가 그대로 유지된다
+- 기존 `tests/test_backend_client.py` 가 metadata 키를 snake_case 로 단언하고 있으면 **새 계약에 맞게 고치고, 무엇을 왜 고쳤는지 보고에 적으세요.** 통과시키려고 단언을 지우지는 마세요.
+
+## 검증
+`.venv/bin/python -m pytest -q` → **373 이상**
+
+## 보고
+`## 결과` 에 바꾼 방식, 직렬화 결과 예시(키 목록), 고친 기존 테스트와 이유를 적고, 마지막 줄에 `완료: 테스트 N passed` 출력.

@@ -1,0 +1,36 @@
+# 수정 — 미참조 데드 스크립트 제거 (사소 T-4)
+
+## 담당 파일
+- `scripts/build_review_page.py` (삭제 대상)
+- `tests/test_project_layout.py` (필요한 경우에만)
+
+(다른 워커가 `pyproject.toml`, `Dockerfile`, `sglang/Dockerfile` 을 동시에 고치는 중이니 절대 건드리지 마세요.)
+
+## 문제
+`scripts/build_review_page.py` 는 1,871줄(55KB)인데 **저장소 전체에서 참조가 0회**다. 코드·테스트·문서·`package.json` 어디에도 호출하는 곳이 없다.
+
+이 스크립트는 파일럿 검수용 로컬 `review.html` 을 만들던 도구이고, 실제로 `generated/evaluation/pilot-20260909-224737/review.html` 을 한 번 만든 이력이 있다. 이후 **원격 검수자용 `scripts/build_review_artifact.py`(310줄)로 대체**됐고, 문서가 안내하는 도구도 `build_review_artifact.py` 와 `build_review_sheet.py` 뿐이다(`docs/deliverables/experiments/round-08/01-implementation-checkpoint.md:34`, `docs/evaluation/human-review-guide.md:175`).
+
+## 할 것
+
+### 1. 삭제 전 확인 (반드시 먼저)
+- `rg -n "build_review_page" .` 로 참조가 정말 0인지 다시 확인할 것. `.venv`, `node_modules`, `.git`, `.orchestration/` 은 제외하고 센다.
+- `tests/test_project_layout.py` 가 이 파일의 **존재**를 주장하는지, 아니면 "루트에 없어야 한다"는 **부재**를 주장하는지 확인할 것. 존재를 요구하고 있으면 삭제하면 테스트가 깨진다.
+- 위 둘 중 하나라도 삭제를 막는 사실이 나오면 **삭제하지 말고 그 사실을 보고할 것.** 무리해서 테스트를 고쳐 통과시키지 말 것.
+
+### 2. 삭제
+확인이 끝나면 `scripts/build_review_page.py` 를 삭제한다.
+
+### 3. 테스트 정리
+`tests/test_project_layout.py` 가 이 파일명을 언급한다면, 그 assertion 이 무엇을 보장하려는 것인지 읽고 **보장 의도를 약화시키지 않는 선에서** 맞출 것. 테스트를 통과시키려고 검사를 삭제하거나 느슨하게 만들지 말 것.
+
+## 하지 말 것
+- `scripts/build_review_artifact.py`, `scripts/build_review_sheet.py` 는 현역이다. 건드리지 말 것.
+- `generated/` 아래의 기존 `review.html` 산출물은 지우지 말 것. 과거 파일럿 산출물이다.
+- 문서는 이번 범위가 아니다. 어차피 이 스크립트를 안내하는 문서가 없다.
+
+## 검증
+`.venv/bin/python -m pytest -q` → **358 passed** (테스트를 건드렸다면 왜 그렇게 했는지 적을 것)
+
+## 보고
+`## 결과` 에 참조 개수 확인 결과, 삭제 여부와 이유, 테스트 결과를 적고, 마지막 줄에 `완료: 삭제 N개 파일, 테스트 358 passed` 출력.

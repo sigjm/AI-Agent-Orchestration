@@ -1,0 +1,44 @@
+# 사양 변경 — Phase3 산출물을 한 파일이 아니라 5개 파일로
+
+관리자 지시: **"문서는 한번에 통합하지 말고 파일로 안에 5개 각각으로 만들어줘"**
+
+앞서 만든 `docs/deliverables/PHASE3_AI_산출물.md`(1,945줄 통합본)를 **폴더 안의 5개 파일로 나눕니다.**
+
+## 결과물
+```
+docs/deliverables/phase3/
+├── README.md                          목차 (어떤 문서 5개가 들어 있는지)
+├── 01-implementation-checkpoint.md
+├── 02-error-analysis.md
+├── 03-second-experiment-report.md
+├── 04-inference-api.md
+└── 05-be-fe-interface.md
+```
+
+- 통합본 `docs/deliverables/PHASE3_AI_산출물.md` 는 **삭제**한다 (`git rm`).
+- 파일 5개 + 목차 README 1개. **5개를 더 쪼개거나 합치지 말 것.**
+
+## 복사 규칙 (앞과 동일)
+- 각 파일은 대응하는 원본을 **원문 그대로** 옮긴다. 요약·의역·재구성 금지.
+- 파일마다 이제 독립 문서이므로 **헤딩 레벨을 내리지 않는다.** 원본의 `#` 을 그대로 둔다. (통합본 만들 때 한 단계 내렸던 것을 원복하는 것이다.)
+- 각 파일 맨 위에 출처 한 줄: `> 원본: docs/deliverables/01-implementation-checkpoint.md (2026-09-09 기준)`
+- 상대 링크가 새 위치(`docs/deliverables/phase3/`)에서 깨지면 **경로만** 고친다. 링크 텍스트는 그대로.
+- `05-be-fe-interface.md` 는 원본이 9줄짜리 포인터다. 앞서처럼 그것이 가리키는 `docs/api/be-fe-ai-integration-spec.md` 의 **원문을 이어 붙이고** 출처를 명시한다. 파일은 **하나로 유지**한다.
+
+## README.md (목차)
+- 이 폴더가 Phase 3 제출용 산출물 묶음이라는 설명 한두 줄
+- 5개 문서 목록과 각각 한 줄 설명, 원본 경로, 줄 수
+- "각 문서는 원본을 그대로 옮긴 복사본"이라는 명시
+
+## 하지 말 것
+- 원본 5종(`docs/deliverables/0*.md`)과 차수 기록(`docs/deliverables/experiments/`)을 **수정하지 말 것.**
+- 원문에 없는 사실을 넣지 말 것. 사람 평가 점수는 존재하지 않고, 서버 GPU 실행도 아직 없다.
+- `docs/` 의 다른 파일, `src/`, `tests/` 는 건드리지 말 것. 다른 워커가 `tests/` 를 동시에 고치는 중이다.
+
+## 검증
+- 5개 파일 각각의 본문 줄 수를 원본과 대조해 누락이 없는지 확인
+- `git status` 로 원본 5종이 무변경인지 확인
+- 통합본이 삭제됐는지 확인
+
+## 보고
+`## 결과` 에 파일별 줄 수(원본 대비)와 삭제한 통합본을 적고, 마지막 줄에 `완료: phase3/ 파일 N개` 출력.

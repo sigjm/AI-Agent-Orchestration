@@ -1,0 +1,46 @@
+# 이름 변경 — 코드·설정 (한 번에 원자적으로)
+
+팀 호칭이 '상품 BE' 가 아니라 **BE** 로 정리됐다. 코드에 남은 `ProductBe` 흔적을 정리한다.
+**이 작업은 코드와 테스트를 함께 고쳐야 한다. 나누면 깨진다.**
+
+## 담당 파일 (이 범위 전체. 문서는 다른 워커가 동시에 고치는 중이니 docs/ 와 README.md 는 열지 말 것)
+- `src/detail_page_ai/` 전체 (ai_dto.py, app.py, config.py, service.py, pipeline.py, backend_client.py, __init__.py)
+- `src/local_detail_page_ai/factory.py`
+- `tests/` 전체
+- `.env.example`
+
+## 바꿀 것 1 — 환경변수
+- 환경변수 이름 `BACKEND_PRODUCT_URL` → **`BACKEND_URL`**
+- 설정 속성 `backend_product_url` → **`backend_url`**
+- 해당 위치: `src/detail_page_ai/config.py:62-63`(Field alias), `src/detail_page_ai/app.py:43`(에러 메시지), `src/local_detail_page_ai/factory.py:29,133,137`, `.env.example:109`, `tests/test_app.py` 5곳
+- 에러 메시지 문자열 `"BACKEND_PRODUCT_URL is not configured"` 도 새 이름으로 바꿀 것
+
+## 바꿀 것 2 — DTO 클래스 이름 8개
+`src/detail_page_ai/ai_dto.py` 정의부와 저장소 전체의 사용처·`__all__` 을 함께 바꾼다.
+
+| 현재 | 변경 후 |
+| --- | --- |
+| `ProductBeToAiCreateJobRequestDto` | `BeToAiCreateJobRequestDto` |
+| `ProductBeToAiApproveDraftRequestDto` | `BeToAiApproveDraftRequestDto` |
+| `ProductBeToAiSaveDraftRequestDto` | `BeToAiSaveDraftRequestDto` |
+| `ProductBeToAiPersistAckDto` | `BeToAiPersistAckDto` |
+| `AiToProductBeAcceptedResponseDto` | `AiToBeAcceptedResponseDto` |
+| `AiToProductBeStatusResponseDto` | `AiToBeStatusResponseDto` |
+| `AiToProductBeApprovedResponseDto` | `AiToBeApprovedResponseDto` |
+| `AiToProductBePersistRequestDto` | `AiToBePersistRequestDto` |
+
+## 절대 바꾸지 말 것 — 바꾸면 BE 와의 계약이 깨진다
+- **JSON 필드 이름**: `product_id`, `product_generated`, `source_asset_id`, `generation_id`, `idempotency_key` 등. 이건 실제로 BE 와 주고받는 wire 계약이다. `product_id` 는 '상품의 ID' 라는 뜻이라 이름도 정확하다.
+- **Pydantic `Field(alias=...)` 의 별칭 문자열** 중 wire 에 나가는 것. `by_alias=True` 로 직렬화되는 값은 전부 계약이다.
+- **HTTP 경로**(`/internal/v1/ai/...`), **헤더 이름**(`X-AI-Internal-Token`, `Idempotency-Key`, `Authorization`).
+- 다른 환경변수 이름(`BACKEND_AUTH_TOKEN`, `BACKEND_TIMEOUT_SECONDS`, `AI_INTERNAL_AUTH_TOKEN` 등).
+- 부모 클래스 `AiBePersistAck`, `AiBeProductPersistRequest`, `_StrictAiBeDto` — 이미 `ProductBe` 형태가 아니다. 건드리지 말 것.
+
+## 검증 (전부 실행하고 결과를 적을 것)
+1. `.venv/bin/python -m pytest -q` → **358 passed**. 개수가 줄면 테스트가 사라진 것이니 되돌릴 것.
+2. `grep -rn "ProductBeToAi\|AiToProductBe\|BACKEND_PRODUCT_URL\|backend_product_url" src/ tests/ .env.example` → **0건**
+3. `grep -rn "product_id\|product_generated\|source_asset_id" src/detail_page_ai/ai_dto.py | wc -l` 가 변경 전과 **같은 수**인지 확인 (필드가 딸려 바뀌지 않았는지)
+4. **테스트를 통과시키려고 검사를 삭제하거나 느슨하게 만들지 말 것.**
+
+## 보고
+`## 결과` 에 변경 파일·건수, 위 검증 4건 결과를 적고, 마지막 줄에 `완료: 테스트 358 passed, 잔여 0건` 출력.

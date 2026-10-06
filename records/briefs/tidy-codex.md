@@ -1,0 +1,40 @@
+# 작업 — 문서 색인 갱신
+
+## 담당 파일 (이 하나만)
+`docs/README.md`
+
+다른 워커가 `docs/evaluation/` 과 `docs/deliverables-audit.md` 를 동시에 만들고 있으니 **그 둘은 열지도 말 것.**
+
+## 문제
+`docs/README.md` 는 문서 안내 색인인데 실제 문서 목록과 크게 어긋나 있다. 확인된 누락:
+
+- 운영: `operations/ubuntu-deployment.md`, `operations/aws-deployment.md`, `operations/aws-migration-checklist.md`, `operations/eks-workload-spec.md`, `operations/sglang-serving-research.md` — **5개 전부 색인에 없다**
+- 평가: `evaluation/full60-runs.md`, `evaluation/ai-review-2026-09-10.md`, `evaluation/cutout-ground-truth.md`, `evaluation/cutout-regression-baseline.md` 등
+- 산출물: `deliverables/01`~`05` 5종과 `deliverables/experiments/round-01`~`round-12` (차수별 5종 문서 60개) — **이 체계 자체가 색인에 없다**
+- `refactoring/` 디렉터리 전체
+- `notebooks/colab_sglang_smoke_test.ipynb`
+
+또한 머리말의 `> 2026-09-08 최신 구현 기준:` 블록이 낡았다. 그 뒤로 서버 추론이 SGLang 으로 확정됐고, hero 는 원본을 그대로 쓰며(`source_original`), 누끼는 rembg 를 쓰고, '참고용' 표시 요구는 제거됐다.
+
+## 할 것
+
+1. **실제 파일 목록과 대조해 색인을 다시 만들 것.** `find docs -name '*.md' | sort` 로 전수 확인하고, 빠진 문서가 없게 한다. 차수 기록 60개는 하나씩 나열하지 말고 `deliverables/experiments/` 체계를 한 항목으로 설명하고 차수 수(12차)를 적을 것.
+2. **각 항목에 한 줄 설명**을 붙일 것. 기존 항목의 설명 형식을 따른다. 설명은 그 문서를 열어보고 쓸 것. 제목만 보고 짐작해서 쓰지 말 것.
+3. **머리말 갱신**: 현재 기준으로 고칠 것. 담을 사실 —
+   - FE 구조 출력의 정본은 제한형 `react_document` JSON AST 이고 `page_plan` 은 편집·하위 호환 필드다 (이건 지금도 사실이므로 유지)
+   - 서버 추론은 SGLang 단일 엔진으로 텍스트(30000)·이미지 확산(30001) 두 서버를 띄운다. Mac 로컬 개발은 MLX 다.
+   - **서버 GPU 에서는 아직 한 번도 실행되지 않았다.**
+4. **시점 기록 구분을 색인에 드러낼 것.** `evaluation/` 의 날짜 붙은 문서, `deliverables/experiments/` 의 차수 기록, `refactoring/` 의 진단 문서는 **당시 사실을 남긴 기록이라 이후에 고치지 않는다**는 점을 해당 절 머리에 한 줄로 적을 것. 이 저장소의 중요한 규칙이라 색인에서 읽혀야 한다.
+5. 죽은 링크가 없어야 한다. 다 쓴 뒤 색인의 모든 상대 경로가 실제로 존재하는지 확인하고 결과를 보고에 적을 것.
+
+## 하지 말 것
+- `docs/README.md` 외의 파일을 만들거나 고치지 말 것.
+- 문서를 옮기거나 이름을 바꾸지 말 것. 색인만 고친다.
+- 없는 문서를 색인에 적지 말 것.
+
+## 검증
+1. 색인의 모든 상대 링크 대상이 실제로 존재하는지 확인 (방법과 결과를 보고에 적을 것)
+2. `.venv/bin/python -m pytest -q` → **358 passed**
+
+## 보고
+`## 결과` 에 추가한 항목 수, 죽은 링크 검사 결과, 테스트 결과를 적고, 마지막 줄에 `완료: 색인 항목 N개, 죽은 링크 0건, 테스트 358 passed` 출력.

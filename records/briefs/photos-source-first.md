@@ -1,0 +1,55 @@
+# 수정 — 제공된 사진을 먼저 쓰고, 모자란 역할만 생성한다
+
+## 관리자 지시
+"현재 4장 미만의 사진이 들어오면 몇 장 생성해서 맞춰주는 형태인데, 일단 제공한 사진 위주로 사용하게 조치."
+
+## 담당 파일
+- `src/detail_page_ai/source_photos.py`
+- `tests/test_source_photos.py`
+
+다른 파일은 건드리지 말 것. 설정 기본값(`SOURCE_PHOTO_VARIATION_THRESHOLD=4`)도 바꾸지 말 것.
+
+## 현재 동작 (진단 완료)
+`src/detail_page_ai/source_photos.py:714`
+
+```python
+if len(source_images) >= max(self.source_photo_variation_threshold, len(roles)):
+    return self._validated_source_set(source_images, roles)
+```
+
+- 조건을 만족하면 `_validated_source_set()` 이 **제공된 사진을 순서대로 역할에 배정**하고 남는 것은 `alternate` 로 둔다. 생성은 일어나지 않는다.
+- 조건을 만족하지 못하면(예: 2~3장) 아래 생성 경로로 내려가는데, **이 경로는 `source_image`(첫 장)만 사용하고 `additional_source_images` 를 통째로 버린다.** 장인이 3장을 올려도 2장이 무시되고 그 자리를 생성 컷이 채운다.
+
+이것이 고칠 대상이다.
+
+## 바꿀 것
+**제공된 사진으로 채울 수 있는 역할은 제공된 사진으로 채우고, 남는 역할만 생성한다.**
+
+- 역할 목록 `roles` 앞에서부터 제공된 사진을 순서대로 배정한다. 배정 방식은 이미 있는 `_validated_source_set()` 과 **같은 의미**여야 한다(`_source_original`, 역할별 라벨, `alternate` 처리).
+- `hero` 는 지금처럼 `_source_hero()` 의 계약을 유지한다 — `asset_mode="source_original"`, `fidelity_status="VERIFIED"`, 원본 픽셀 보존.
+- 제공된 사진 수보다 역할이 많을 때, **남는 역할에 대해서만** 기존 생성 경로(누끼 packshot 파생, `_generated_usage_scene`, `_generated_detail_view`)를 태운다. 생성 시 참조 이미지는 지금처럼 첫 장을 쓴다.
+- 제공된 사진이 역할 수보다 많으면 지금처럼 `alternate` 로 넘긴다.
+- 사진이 역할 수 이상이면 **지금과 완전히 동일하게** 동작해야 한다(생성 없음). 회귀가 있으면 안 된다.
+
+## 지켜야 할 계약 (깨뜨리면 안 됨)
+- `asset_mode` 값 집합과 의미: `source`, `source_original`, `source_crop`, `source_composite`, `generated_scene`, `generated_view`
+- `fidelity_status`: `VERIFIED` / `FALLBACK` / `GENERATED`
+- 생성 자산은 `product_generated=True`, 원본 기반 자산은 `False`
+- 누끼 실패 시 원본으로 폴백하는 현재 동작
+- 화면에 '참고용' 표시를 붙이지 않는다
+
+## 테스트
+`tests/test_source_photos.py` 에 다음을 **추가**한다. 기존 35개 테스트를 고치거나 지우지 말 것 — 기존 테스트가 깨지면 그건 회귀다.
+
+1. 사진 2장 + 역할 4개 → **앞 2개 역할이 제공 사진(`product_generated=False`)** 으로 채워지고, 나머지만 생성된다
+2. 사진 3장 → 앞 3개 역할이 제공 사진
+3. 사진 1장 → 현재와 같이 hero 만 제공 사진, 나머지 생성
+4. 사진 4장 이상 → 생성 자산이 **하나도 없다** (기존 동작 유지)
+5. 제공된 사진의 바이트가 그대로 보존된다 (재인코딩되지 않는다)
+
+## 검증
+- `.venv/bin/python -m pytest -q` → 기존 358 + 추가분. **개수가 358보다 줄면 안 된다.**
+- 통과시키려고 기존 검사를 삭제·완화하지 말 것.
+
+## 보고
+`## 결과` 에 바꾼 함수·행, 추가한 테스트 목록, 테스트 개수 변화를 적고, 마지막 줄에 `완료: 테스트 N passed` 출력.
